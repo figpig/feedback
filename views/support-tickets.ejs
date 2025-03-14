@@ -13,7 +13,7 @@
   <tbody>
     <% tickets.forEach(ticket => { %>
       <tr>
-        <td><%= ticket.id %></td>
+        <td><a href="/support-ticket/<%= ticket.id %>"><%= ticket.id %></a></td>
         <td><%= ticket.customer_id %></td>
         <td><%= ticket.description %></td>
         <td><%= ticket.handled %></td>
