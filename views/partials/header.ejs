@@ -8,15 +8,15 @@
 </head>
 <body>
   <header>
-    <nav>
-      <ul>
-        <li><a href="/customers-users">Customers & Users</a></li>
-        <li><a href="/support-tickets">Support Tickets</a></li>
-        <li><a href="/feedback">Feedback</a></li>
-        <% if (user) { %>
-          <li><a href="/logout">Logout</a></li>
-        <% } %>
-      </ul>
-    </nav>
+<nav>
+  <ul>
+    <li><a href="/">Home</a></li>
+    <% if (user) { %>
+      <li><a href="/logout">Logout</a></li>
+    <% } else { %>
+      <li><a href="/login">Login</a></li>
+    <% } %>
+  </ul>
+</nav>
   </header>
   <main>

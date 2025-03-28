@@ -266,35 +266,3 @@ INSERT INTO support_message (id, ticket_id, reply_to, from_user, body)
   VALUES (58, 40, NULL, 13, 'Initial message for ticket 10 for Stark Industries');
 INSERT INTO support_message (id, ticket_id, reply_to, from_user, body)
   VALUES (59, 40, 58, 15, 'Admin reply to ticket 10 for Stark Industries');
-
-INSERT INTO feedback (guest_name, guest_email, feedback, handled) VALUES
-  ('John Doe', 'john@example.com', 'Great service overall!', NULL),
-  ('Jane Roe', 'jane@example.com', 'I had some trouble finding help.', NULL),
-  ('Bob Guest', 'bob.guest@example.com', 'The website is very user friendly.', NULL),
-  ('Alice Visitor', 'alice.visitor@example.com', 'Support was a bit slow.', NULL),
-  ('Sam Tester', 'sam@test.com', 'Loved the quick responses!', NULL),
-  ('Megan Public', 'megan.public@example.com', 'Good, but could be improved.', NULL),
-  ('Tom Random', 'tom.random@example.com', 'Satisfied with the service.', NULL),
-  ('Lucy Lee', 'lucy.lee@example.com', 'Feedback: service quality is high.', NULL),
-  ('Gary Nonuser', 'gary@example.com', 'I appreciate the follow-ups.', NULL),
-  ('Nina External', 'nina@extern.com', 'Helpful and friendly support.', NULL),
-  ('Oliver Out', 'oliver.out@example.com', 'The support portal is intuitive.', NULL),
-  ('Paula Free', 'paula.free@example.com', 'No issues so far.', NULL),
-  ('Quincy Q', 'quincyq@example.com', 'Very prompt assistance!', NULL),
-  ('Rachel R', 'rachel.r@example.com', 'Great experience.', NULL),
-  ('Steve S', 'steve.s@example.com', 'Could use more updates.', NULL);
-
-INSERT INTO feedback (from_user, feedback, handled) VALUES
-  (2, 'I had an issue but it was resolved quickly.', NOW()),
-  (3, 'The ticketing system works as expected.', NOW()),
-  (5, 'I appreciate the timely responses.', NOW()),
-  (7, 'Support has been very helpful.', NOW()),
-  (8, 'There was a slight delay in response.', NOW()),
-  (10, 'Our support team is great!', NOW()),
-  (12, 'Smooth experience with the support portal.', NOW()),
-  (13, 'The admin reply clarified my doubts.', NOW()),
-  (4, 'I am satisfied with the current workflow.', NOW()),
-  (11, 'Happy with the improvements in support.', NOW()),
-  (1, 'Everything is running perfectly.', NOW()),
-  (6, 'The system performance is top-notch.', NOW()),
-  (9, 'The support system is efficient.', NOW());

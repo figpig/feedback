@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import bodyParser from "body-parser";
 import session from "express-session";
+import bcrypt from 'bcrypt';
 
 const port = 3000;
 const host = "localhost";
@@ -21,7 +22,6 @@ app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
 app.use("/includes", express.static(path.join(__dirname, "includes")));
-
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(
@@ -32,7 +32,6 @@ app.use(
   })
 );
 
-// Middleware to check if user is authenticated
 function isAuthenticated(req, res, next) {
   if (req.session.user) {
     return next();
@@ -41,7 +40,7 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-// Middleware to check if user is admin
+
 function isAdmin(req, res, next) {
   if (req.session.user && req.session.user.admin) {
     return next();
@@ -56,7 +55,7 @@ app.use((req, res, next) => {
 });
 
 app.get("/", (req, res) => {
-  res.redirect("/customers-users");
+  res.redirect("/customer-users");
 });
 
 app.get("/login", (req, res) => {
@@ -64,7 +63,7 @@ app.get("/login", (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
-  const { identifier } = req.body;
+  const { identifier, password } = req.body;
   let connection;
   try {
     connection = await mysql.createConnection({
@@ -73,27 +72,46 @@ app.post("/login", async (req, res) => {
       password: dbPwd,
       database: dbName,
     });
+
+    console.log("Login attempt with identifier:", identifier);
+
     const [rows] = await connection.execute(
       "SELECT * FROM system_user WHERE id = ? OR email = ?",
       [identifier, identifier]
     );
-    if (rows.length > 0 && rows[0].admin) {
-      req.session.user = rows[0];
-      res.redirect("/customers-users");
+
+    if (rows.length > 0) {
+      const user = rows[0];
+      console.log("User found:", user);
+
+      if (!user.password) {
+        console.error("Password is NULL for user:", user.email);
+        return res.render("login", {
+          error: "Virheelliset tunnistetiedot tai ei järjestelmänvalvoja",
+        });
+      }
+
+      const match = await bcrypt.compare(password, user.password);
+      console.log("Password match:", match);
+
+      if (match && user.admin) {
+        console.log("Login successful for user:", user.email);
+        req.session.user = user;
+        res.redirect("/customer-users");
+      } else {
+        console.log("Login failed: Invalid credentials or not an admin.");
+        res.render("login", {
+          error: "Virheelliset tunnistetiedot tai ei järjestelmänvalvoja",
+        });
+      }
     } else {
+      console.log("No user found with identifier:", identifier);
       res.render("login", {
         error: "Virheelliset tunnistetiedot tai ei järjestelmänvalvoja",
       });
     }
   } catch (err) {
-    console.error(
-      "Database error:",
-      err.message,
-      "Errno:",
-      err.errno,
-      "SQL State:",
-      err.sqlState
-    );
+    console.error("Database error:", err);
     res.status(500).send("Internal Server Error");
   } finally {
     if (connection) await connection.end();
@@ -105,7 +123,7 @@ app.get("/logout", (req, res) => {
   res.redirect("/login");
 });
 
-app.get("/api/feedback", isAuthenticated, async (req, res) => {
+app.get("/customer-users", isAuthenticated, isAdmin, async (req, res) => {
   let connection;
   try {
     connection = await mysql.createConnection({
@@ -114,245 +132,26 @@ app.get("/api/feedback", isAuthenticated, async (req, res) => {
       password: dbPwd,
       database: dbName,
     });
-    const [rows] = await connection.execute("SELECT * FROM feedback");
-    res.json(rows);
+
+    console.log("Database connection established");
+
+    const [customers] = await connection.execute("SELECT id, name FROM customer");
+    console.log("Customer fetched:", customers);
+
+    const [users] = await connection.execute("SELECT id, fullname, email, mailing_list, customer_id, admin FROM system_user");
+    console.log("Users fetched:", users);
+
+    res.render("customers-users", {
+      user: req.session.user,
+      customers: customers,
+      users: users,
+    });
   } catch (err) {
-    console.error(
-      "Database error:",
-      err.message,
-      "Errno:",
-      err.errno,
-      "SQL State:",
-      err.sqlState
-    );
+    console.error("Database error:", err);
     res.status(500).send("Internal Server Error");
   } finally {
     if (connection) await connection.end();
   }
-});
-
-app.get("/api/feedback/:id", isAuthenticated, async (req, res) => {
-  let connection;
-  try {
-    const id = parseInt(req.params.id);
-    connection = await mysql.createConnection({
-      host: dbHost,
-      user: dbUser,
-      password: dbPwd,
-      database: dbName,
-    });
-    const [rows] = await connection.execute(
-      "SELECT * FROM feedback WHERE id = ?",
-      [id]
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error(
-      "Database error:",
-      err.message,
-      "Errno:",
-      err.errno,
-      "SQL State:",
-      err.sqlState
-    );
-    res.status(500).send("Internal Server Error");
-  } finally {
-    if (connection) await connection.end();
-  }
-});
-
-app.get("/feedback", isAuthenticated, async (req, res) => {
-  let connection;
-  try {
-    connection = await mysql.createConnection({
-      host: dbHost,
-      user: dbUser,
-      password: dbPwd,
-      database: dbName,
-    });
-    const [rows] = await connection.execute("SELECT * FROM feedback");
-    res.render("feedback", { rows });
-  } catch (err) {
-    console.error(
-      "Database error:",
-      err.message,
-      "Errno:",
-      err.errno,
-      "SQL State:",
-      err.sqlState
-    );
-    res.status(500).send("Internal Server Error");
-  } finally {
-    if (connection) await connection.end();
-  }
-});
-
-app.get("/customers-users", isAuthenticated, async (req, res) => {
-  let connection;
-  try {
-    connection = await mysql.createConnection({
-      host: dbHost,
-      user: dbUser,
-      password: dbPwd,
-      database: dbName,
-    });
-    const [customers] = await connection.execute("SELECT * FROM customer");
-    const [users] = await connection.execute("SELECT * FROM system_user");
-    res.render("customers-users", { customers, users });
-  } catch (err) {
-    console.error(
-      "Database error:",
-      err.message,
-      "Errno:",
-      err.errno,
-      "SQL State:",
-      err.sqlState
-    );
-    res.status(500).send("Internal Server Error");
-  } finally {
-    if (connection) await connection.end();
-  }
-});
-
-app.get("/support-tickets", isAuthenticated, async (req, res) => {
-  let connection;
-  try {
-    connection = await mysql.createConnection({
-      host: dbHost,
-      user: dbUser,
-      password: dbPwd,
-      database: dbName,
-    });
-    const [tickets] = await connection.execute("SELECT * FROM support_ticket");
-    res.render("support-tickets", { tickets });
-  } catch (err) {
-    console.error(
-      "Database error:",
-      err.message,
-      "Errno:",
-      err.errno,
-      "SQL State:",
-      err.sqlState
-    );
-    res.status(500).send("Internal Server Error");
-  } finally {
-    if (connection) await connection.end();
-  }
-});
-
-app.get("/support-ticket/:id", isAuthenticated, async (req, res) => {
-  let connection;
-  try {
-    const id = parseInt(req.params.id);
-    connection = await mysql.createConnection({
-      host: dbHost,
-      user: dbUser,
-      password: dbPwd,
-      database: dbName,
-    });
-    const [ticketRows] = await connection.execute(
-      "SELECT * FROM support_ticket WHERE id = ?",
-      [id]
-    );
-    const [messageRows] = await connection.execute(
-      "SELECT * FROM support_message WHERE ticket_id = ?",
-      [id]
-    );
-    const [statusRows] = await connection.execute(
-      "SELECT * FROM ticket_status"
-    );
-    if (ticketRows.length === 0) {
-      res.status(404).send("Ticket not found");
-      return;
-    }
-    console.log("Ticket:", ticketRows[0]);
-    console.log("Messages:", messageRows);
-    res.render("support-ticket", {
-      ticket: ticketRows[0],
-      messages: messageRows,
-      statuses: statusRows,
-    });
-  } catch (err) {
-    console.error(
-      "Database error:",
-      err.message,
-      "Errno:",
-      err.errno,
-      "SQL State:",
-      err.sqlState
-    );
-    res.status(500).send("Internal Server Error");
-  } finally {
-    if (connection) await connection.end();
-  }
-});
-
-app.post("/support-ticket/:id/reply", isAuthenticated, async (req, res) => {
-  let connection;
-  try {
-    const id = parseInt(req.params.id);
-    const { body } = req.body;
-    connection = await mysql.createConnection({
-      host: dbHost,
-      user: dbUser,
-      password: dbPwd,
-      database: dbName,
-    });
-    await connection.execute(
-      "INSERT INTO support_message (ticket_id, from_user, body) VALUES (?, ?, ?)",
-      [id, 1, body]
-    );
-    res.redirect(`/support-ticket/${id}`);
-  } catch (err) {
-    console.error(
-      "Database error:",
-      err.message,
-      "Errno:",
-      err.errno,
-      "SQL State:",
-      err.sqlState
-    );
-    res.status(500).send("Internal Server Error");
-  } finally {
-    if (connection) await connection.end();
-  }
-});
-
-app.post("/support-ticket/:id/status", isAuthenticated, async (req, res) => {
-  let connection;
-  try {
-    const id = parseInt(req.params.id);
-    const { status } = req.body;
-    connection = await mysql.createConnection({
-      host: dbHost,
-      user: dbUser,
-      password: dbPwd,
-      database: dbName,
-    });
-    const handled = status === "4" ? "NOW()" : "NULL";
-    await connection.execute(
-      `UPDATE support_ticket SET status = ?, handled = ${handled} WHERE id = ?`,
-      [status, id]
-    );
-    res.redirect(`/support-ticket/${id}`);
-  } catch (err) {
-    console.error(
-      "Database error:",
-      err.message,
-      "Errno:",
-      err.errno,
-      "SQL State:",
-      err.sqlState
-    );
-    res.status(500).send("Internal Server Error");
-  } finally {
-    if (connection) await connection.end();
-  }
-});
-
-app.use((err, req, res, next) => {
-  console.error("Internal Server Error:", err);
-  res.status(500).send("Internal Server Error");
 });
 
 async function createDatabaseIfNotExists() {
@@ -364,8 +163,17 @@ async function createDatabaseIfNotExists() {
       password: dbPwd,
     });
     await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
+    await connection.changeUser({ database: dbName });
+
+    // Create customer table if it doesn't exist
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS customer (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL
+      );
+    `);
   } catch (err) {
-    console.error("Database creation error:", err.message);
+    console.error("Database creation error:", err);
   } finally {
     if (connection) await connection.end();
   }
