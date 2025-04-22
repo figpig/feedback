@@ -154,6 +154,69 @@ app.get("/customer-users", isAuthenticated, isAdmin, async (req, res) => {
   }
 });
 
+app.get("/user/:id", isAuthenticated, isAdmin, async (req, res) => {
+  const userId = req.params.id;
+  let connection;
+  try {
+    connection = await mysql.createConnection({
+      host: dbHost,
+      user: dbUser,
+      password: dbPwd,
+      database: dbName,
+    });
+
+    const [rows] = await connection.execute("SELECT id, fullname, email, mailing_list, customer_id, admin FROM system_user WHERE id = ?", [userId]);
+    if (rows.length === 0) {
+      return res.status(404).send("User not found");
+    }
+
+    res.render("user", { user: rows[0] });
+  } catch (err) {
+    console.error("Database error:", err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.end();
+  }
+});
+
+app.post("/user/:id", isAuthenticated, isAdmin, async (req, res) => {
+  const userId = req.params.id;
+  const { fullname, email, mailing_list, customer_id, admin, password } = req.body;
+  let connection;
+  try {
+    connection = await mysql.createConnection({
+      host: dbHost,
+      user: dbUser,
+      password: dbPwd,
+      database: dbName,
+    });
+
+    let hashedPassword = null;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, 10);
+    }
+
+    const query = `
+      UPDATE system_user
+      SET fullname = ?, email = ?, mailing_list = ?, customer_id = ?, admin = ?
+      ${hashedPassword ? ", password = ?" : ""}
+      WHERE id = ?
+    `;
+    const params = hashedPassword
+      ? [fullname, email, mailing_list, customer_id, admin, hashedPassword, userId]
+      : [fullname, email, mailing_list, customer_id, admin, userId];
+
+    await connection.execute(query, params);
+
+    res.redirect("/customer-users");
+  } catch (err) {
+    console.error("Database error:", err);
+    res.status(500).send("Internal Server Error");
+  } finally {
+    if (connection) await connection.end();
+  }
+});
+
 async function createDatabaseIfNotExists() {
   let connection;
   try {

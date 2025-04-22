@@ -1,4 +1,3 @@
-// filepath: c:\feedback-request\hashPassword.js
 import bcrypt from 'bcrypt';
 
 const password = '14';
